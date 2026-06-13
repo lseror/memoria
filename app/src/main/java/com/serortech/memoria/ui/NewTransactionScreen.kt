@@ -61,6 +61,7 @@ private class LineDraft {
     var name by mutableStateOf("")
     var price by mutableStateOf("")
     var photoPath by mutableStateOf<String?>(null)
+    var transcript by mutableStateOf<String?>(null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -129,6 +130,7 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
                                 name = d.name.trim(),
                                 price = d.price.replace(',', '.').toDoubleOrNull(),
                                 photoPath = d.photoPath,
+                                transcript = d.transcript,
                                 createdAt = now,
                             )
                         }
@@ -201,6 +203,7 @@ private fun LineEditor(
                 scope.launch {
                     try {
                         val text = voice.transcribe(file)
+                        line.transcript = text
                         val ex = voice.extractLine(text)
                         ex.direction?.let { line.direction = it }
                         ex.name?.let { line.name = it }

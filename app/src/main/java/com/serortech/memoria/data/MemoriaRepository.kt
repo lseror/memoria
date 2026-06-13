@@ -1,7 +1,9 @@
 package com.serortech.memoria.data
 
 import android.content.Context
+import com.serortech.memoria.media.ExifTagger
 import kotlinx.coroutines.flow.Flow
+import org.json.JSONObject
 
 /**
  * Accès aux données Memoria : observe les transactions et enregistre une
@@ -22,10 +24,28 @@ class MemoriaRepository(private val dao: MemoriaDao) {
             Transaction(createdAt = now, note = note?.ifBlank { null }, validated = validated),
         )
         if (lines.isNotEmpty()) {
-            dao.insertLines(lines.map { it.copy(transactionId = txId, createdAt = now) })
+            val persisted = lines.map { it.copy(transactionId = txId, createdAt = now) }
+            dao.insertLines(persisted)
+            // Hybride : Room = source de vérité, + on incruste les champs dans l'EXIF.
+            persisted.forEach { line ->
+                line.photoPath?.takeIf { it.isNotBlank() }?.let { path ->
+                    ExifTagger.write(path, exifJson(line))
+                }
+            }
         }
         return txId
     }
+
+    private fun exifJson(line: TradeLine): String = JSONObject().apply {
+        put("app", "memoria")
+        put("transactionId", line.transactionId)
+        put("direction", line.direction.name)
+        put("name", line.name)
+        put("price", line.price ?: JSONObject.NULL)
+        put("marketPrice", line.marketPrice ?: JSONObject.NULL)
+        put("transcript", line.transcript ?: JSONObject.NULL)
+        put("createdAt", line.createdAt)
+    }.toString()
 
     companion object {
         fun from(ctx: Context): MemoriaRepository =
