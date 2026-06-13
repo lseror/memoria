@@ -13,8 +13,8 @@ android {
         applicationId = "com.serortech.memoria"
         minSdk = 29
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.0.4"
+        versionCode = 5
+        versionName = "0.0.5"
     }
 
     buildTypes {
@@ -53,5 +53,6 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.security.crypto)
     debugImplementation(libs.androidx.ui.tooling)
 }

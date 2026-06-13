@@ -11,9 +11,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.serortech.memoria.ui.HomeScreen
 import com.serortech.memoria.ui.NewTransactionScreen
+import com.serortech.memoria.ui.SettingsScreen
 import com.serortech.memoria.ui.theme.MemoriaTheme
 
-private enum class Screen { HOME, NEW_TRANSACTION }
+private enum class Screen { HOME, NEW_TRANSACTION, SETTINGS }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,13 +31,20 @@ class MainActivity : ComponentActivity() {
 private fun App() {
     var screen by remember { mutableStateOf(Screen.HOME) }
     when (screen) {
-        Screen.HOME -> HomeScreen(onNewTransaction = { screen = Screen.NEW_TRANSACTION })
+        Screen.HOME -> HomeScreen(
+            onNewTransaction = { screen = Screen.NEW_TRANSACTION },
+            onSettings = { screen = Screen.SETTINGS },
+        )
         Screen.NEW_TRANSACTION -> {
             BackHandler { screen = Screen.HOME }
             NewTransactionScreen(
                 onBack = { screen = Screen.HOME },
                 onSaved = { screen = Screen.HOME },
             )
+        }
+        Screen.SETTINGS -> {
+            BackHandler { screen = Screen.HOME }
+            SettingsScreen(onBack = { screen = Screen.HOME })
         }
     }
 }
