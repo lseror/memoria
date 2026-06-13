@@ -46,6 +46,8 @@ fun SettingsScreen(onBack: () -> Unit) {
     var openAiKey by remember { mutableStateOf(store.openAiKey) }
     var showKey by remember { mutableStateOf(false) }
     var tcgUrl by remember { mutableStateOf(store.tcgPricerBaseUrl) }
+    var voicePrompt by remember { mutableStateOf(store.voicePrompt) }
+    var recoPrompt by remember { mutableStateOf(store.recognitionPrompt) }
 
     Scaffold(
         topBar = {
@@ -90,11 +92,35 @@ fun SettingsScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            OutlinedTextField(
+                value = voicePrompt,
+                onValueChange = { voicePrompt = it },
+                label = { Text("Prompt — extraction vocale") },
+                minLines = 4,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(onClick = { voicePrompt = ApiKeyStore.DEFAULT_VOICE_PROMPT }) {
+                Text("Réinitialiser le prompt vocal")
+            }
+
+            OutlinedTextField(
+                value = recoPrompt,
+                onValueChange = { recoPrompt = it },
+                label = { Text("Prompt — reconnaissance image") },
+                minLines = 4,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(onClick = { recoPrompt = ApiKeyStore.DEFAULT_RECOGNITION_PROMPT }) {
+                Text("Réinitialiser le prompt image")
+            }
+
             Button(
                 onClick = {
                     store.openAiKey = openAiKey
                     store.tcgPricerBaseUrl = tcgUrl
                     tcgUrl = store.tcgPricerBaseUrl
+                    store.voicePrompt = voicePrompt
+                    store.recognitionPrompt = recoPrompt
                     scope.launch { snackbar.showSnackbar("Réglages enregistrés") }
                 },
                 modifier = Modifier.fillMaxWidth(),

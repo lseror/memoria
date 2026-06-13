@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -83,6 +85,7 @@ fun NewTransactionScreen(editId: Long?, onBack: () -> Unit, onSaved: () -> Unit)
     var note by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var createdAt by remember { mutableStateOf(0L) }
+    var showDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(editId) {
         if (editId != null) {
@@ -98,6 +101,26 @@ fun NewTransactionScreen(editId: Long?, onBack: () -> Unit, onSaved: () -> Unit)
 
     val canSave = lines.any { it.name.isNotBlank() } && !saving
 
+    if (showDelete && editId != null) {
+        AlertDialog(
+            onDismissRequest = { showDelete = false },
+            title = { Text("Supprimer la transaction ?") },
+            text = { Text("Cette action est irréversible.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDelete = false
+                    scope.launch {
+                        withContext(Dispatchers.IO) { repo.deleteTransaction(editId) }
+                        onSaved()
+                    }
+                }) { Text("Supprimer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDelete = false }) { Text("Annuler") }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -105,6 +128,13 @@ fun NewTransactionScreen(editId: Long?, onBack: () -> Unit, onSaved: () -> Unit)
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                    }
+                },
+                actions = {
+                    if (editId != null) {
+                        IconButton(onClick = { showDelete = true }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Supprimer")
+                        }
                     }
                 },
             )

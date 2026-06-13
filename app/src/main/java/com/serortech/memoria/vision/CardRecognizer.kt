@@ -50,7 +50,7 @@ class CardRecognizer(private val ctx: Context) {
             put("model", MODEL)
             put("response_format", JSONObject().put("type", "json_object"))
             put("messages", JSONArray().apply {
-                put(JSONObject().put("role", "system").put("content", PROMPT))
+                put(JSONObject().put("role", "system").put("content", ApiKeyStore(ctx).recognitionPrompt))
                 put(JSONObject().put("role", "user").put("content", userContent))
             })
         }
@@ -83,13 +83,5 @@ class CardRecognizer(private val ctx: Context) {
     companion object {
         private const val BASE = "https://api.openai.com/v1"
         private const val MODEL = "gpt-4o"
-        private val PROMPT = """
-            Tu identifies une carte à collectionner (Pokémon en priorité) à partir d'une photo.
-            Réponds uniquement en JSON avec :
-            - "name" : le nom de la carte tel qu'imprimé, sinon null.
-            - "set" : le nom de l'extension/série si lisible, sinon null.
-            - "number" : le numéro de la carte (ex. "4/102") si lisible, sinon null.
-            Ne devine pas si l'information n'est pas lisible.
-        """.trimIndent()
     }
 }

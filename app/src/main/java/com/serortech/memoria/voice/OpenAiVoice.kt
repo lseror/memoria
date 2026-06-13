@@ -66,7 +66,7 @@ class OpenAiVoice(private val ctx: Context) {
             put("model", CHAT_MODEL)
             put("response_format", JSONObject().put("type", "json_object"))
             put("messages", org.json.JSONArray().apply {
-                put(JSONObject().put("role", "system").put("content", SYSTEM_PROMPT))
+                put(JSONObject().put("role", "system").put("content", ApiKeyStore(ctx).voicePrompt))
                 put(JSONObject().put("role", "user").put("content", transcript))
             })
         }
@@ -108,13 +108,5 @@ class OpenAiVoice(private val ctx: Context) {
         private const val BASE = "https://api.openai.com/v1"
         private const val TRANSCRIBE_MODEL = "gpt-4o-transcribe"
         private const val CHAT_MODEL = "gpt-4o-mini"
-        private val SYSTEM_PROMPT = """
-            Tu extrais les informations d'une phrase en français décrivant UNE carte échangée (cartes à collectionner, ex. Pokémon).
-            Réponds uniquement en JSON avec les clés :
-            - "direction" : "IN" si la carte est acquise / entrante / achetée / reçue ; "OUT" si cédée / sortante / vendue / donnée ; null si non précisé.
-            - "name" : le nom de la carte tel que prononcé, sinon null.
-            - "price" : le prix en euros sous forme de nombre (ex. 4000), sinon null.
-            Ne déduis que ce qui est explicite. N'invente pas de valeur.
-        """.trimIndent()
     }
 }

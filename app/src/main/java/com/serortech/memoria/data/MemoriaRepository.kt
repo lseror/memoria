@@ -16,6 +16,8 @@ class MemoriaRepository(private val dao: MemoriaDao) {
 
     suspend fun getTransaction(id: Long): TransactionWithLines? = dao.getTransaction(id)
 
+    suspend fun deleteTransaction(id: Long) = dao.deleteTransactionById(id)
+
     suspend fun saveTransaction(
         note: String?,
         validated: Boolean,

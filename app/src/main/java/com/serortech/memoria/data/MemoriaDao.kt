@@ -20,6 +20,9 @@ interface MemoriaDao {
     @Delete
     suspend fun deleteTransaction(transaction: Transaction)
 
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteTransactionById(id: Long)
+
     @Insert
     suspend fun insertLine(line: TradeLine): Long
 
