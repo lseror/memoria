@@ -2,44 +2,41 @@ package com.serortech.memoria
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.serortech.memoria.ui.HomeScreen
+import com.serortech.memoria.ui.NewTransactionScreen
 import com.serortech.memoria.ui.theme.MemoriaTheme
+
+private enum class Screen { HOME, NEW_TRANSACTION }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MemoriaTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { inner ->
-                    Home(modifier = Modifier.padding(inner))
-                }
+                App()
             }
         }
     }
 }
 
 @Composable
-fun Home(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text("Memoria", style = MaterialTheme.typography.headlineLarge)
-        Text(
-            "v0.0.2 — carnet de transactions cartes",
-            style = MaterialTheme.typography.bodyMedium,
-        )
+private fun App() {
+    var screen by remember { mutableStateOf(Screen.HOME) }
+    when (screen) {
+        Screen.HOME -> HomeScreen(onNewTransaction = { screen = Screen.NEW_TRANSACTION })
+        Screen.NEW_TRANSACTION -> {
+            BackHandler { screen = Screen.HOME }
+            NewTransactionScreen(
+                onBack = { screen = Screen.HOME },
+                onSaved = { screen = Screen.HOME },
+            )
+        }
     }
 }
