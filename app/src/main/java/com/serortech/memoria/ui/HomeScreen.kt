@@ -104,7 +104,7 @@ private fun TransactionCard(tx: TransactionWithLines, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(top = 4.dp),
                 ) {
-                    line.photoPath?.let { CardThumbnail(path = it, sizeDp = 40) }
+                    line.photoPath?.let { PhotoThumb(path = it, sizeDp = 40) }
                     Text(
                         "$arrow  ${line.name}$price",
                         style = MaterialTheme.typography.bodyMedium,

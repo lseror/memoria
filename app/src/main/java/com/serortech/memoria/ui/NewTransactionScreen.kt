@@ -24,6 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -51,6 +52,8 @@ import com.serortech.memoria.data.TradeDirection
 import com.serortech.memoria.data.TradeLine
 import com.serortech.memoria.media.ImageProcessing
 import com.serortech.memoria.media.PhotoFiles
+import com.serortech.memoria.net.TcgPricer
+import com.serortech.memoria.vision.CardRecognizer
 import com.serortech.memoria.voice.OpenAiVoice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -64,6 +67,8 @@ private class LineDraft {
     var price by mutableStateOf("")
     var photoPath by mutableStateOf<String?>(null)
     var transcript by mutableStateOf<String?>(null)
+    var marketPrice by mutableStateOf<Double?>(null)
+    var recognized by mutableStateOf(false)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -145,8 +150,10 @@ fun NewTransactionScreen(editId: Long?, onBack: () -> Unit, onSaved: () -> Unit)
                                 direction = d.direction,
                                 name = d.name.trim(),
                                 price = d.price.replace(',', '.').toDoubleOrNull(),
+                                marketPrice = d.marketPrice,
                                 photoPath = d.photoPath,
                                 transcript = d.transcript,
+                                recognized = d.recognized,
                                 createdAt = now,
                             )
                         }
@@ -190,6 +197,31 @@ private fun LineEditor(
     var recording by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
 
+    val recognizer = remember { CardRecognizer(ctx) }
+    val tcgPricer = remember { TcgPricer(ctx) }
+    var recognizing by remember { mutableStateOf(false) }
+
+    fun runRecognition() {
+        val path = line.photoPath ?: return
+        if (recognizing) return
+        recognizing = true
+        scope.launch {
+            try {
+                val rec = recognizer.recognize(path)
+                rec.name?.let { line.name = it; line.recognized = true }
+                val query = (rec.name ?: line.name).trim()
+                if (query.isNotBlank()) {
+                    tcgPricer.lookup(query)?.price?.let { line.marketPrice = it }
+                }
+                if (rec.name == null) onError("Carte non reconnue — renseigne-la à la main.")
+            } catch (e: Exception) {
+                onError(e.message ?: "Échec de la reconnaissance.")
+            } finally {
+                recognizing = false
+            }
+        }
+    }
+
     var pendingFile by remember { mutableStateOf<File?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
@@ -198,6 +230,7 @@ private fun LineEditor(
             scope.launch {
                 withContext(Dispatchers.IO) { ImageProcessing.stripAndNormalize(f) }
                 line.photoPath = f.absolutePath
+                runRecognition()
             }
         }
     }
@@ -300,6 +333,13 @@ private fun LineEditor(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.width(220.dp),
             )
+            line.marketPrice?.let {
+                Text(
+                    "Marché ~ %.2f €".format(it),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
                     onClick = {
@@ -310,7 +350,17 @@ private fun LineEditor(
                 ) {
                     Text(if (line.photoPath == null) "Photographier" else "Reprendre la photo")
                 }
-                line.photoPath?.let { CardThumbnail(path = it, sizeDp = 56) }
+                line.photoPath?.let { PhotoThumb(path = it, sizeDp = 56) }
+            }
+            if (line.photoPath != null) {
+                OutlinedButton(onClick = { runRecognition() }, enabled = !recognizing) {
+                    if (recognizing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text("  Reconnaissance…")
+                    } else {
+                        Text("Relancer la reconnaissance")
+                    }
+                }
             }
         }
     }
@@ -325,6 +375,8 @@ private fun draftOf(line: TradeLine): LineDraft = LineDraft().apply {
     direction = line.direction
     name = line.name
     price = line.price?.let { formatPrice(it) } ?: ""
+    marketPrice = line.marketPrice
     photoPath = line.photoPath
     transcript = line.transcript
+    recognized = line.recognized
 }
