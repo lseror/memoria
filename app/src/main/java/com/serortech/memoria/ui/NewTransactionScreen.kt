@@ -32,6 +32,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,7 +67,7 @@ private class LineDraft {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
+fun NewTransactionScreen(editId: Long?, onBack: () -> Unit, onSaved: () -> Unit) {
     val ctx = LocalContext.current
     val repo = remember { MemoriaRepository.from(ctx) }
     val scope = rememberCoroutineScope()
@@ -75,13 +76,26 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
     val lines = remember { mutableStateListOf(LineDraft()) }
     var note by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
+    var createdAt by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(editId) {
+        if (editId != null) {
+            repo.getTransaction(editId)?.let { tx ->
+                createdAt = tx.transaction.createdAt
+                note = tx.transaction.note.orEmpty()
+                lines.clear()
+                tx.lines.forEach { lines.add(draftOf(it)) }
+                if (lines.isEmpty()) lines.add(LineDraft())
+            }
+        }
+    }
 
     val canSave = lines.any { it.name.isNotBlank() } && !saving
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nouvelle transaction") },
+                title = { Text(if (editId == null) "Nouvelle transaction" else "Modifier la transaction") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
@@ -101,6 +115,7 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
                     canDelete = lines.size > 1,
                     onDelete = { lines.removeAt(index) },
                     onError = { msg -> scope.launch { snackbar.showSnackbar(msg) } },
+                    onTranscript = { t -> note = if (note.isBlank()) t else note + "\n" + t },
                 )
             }
             item {
@@ -136,18 +151,24 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
                         }
                         scope.launch {
                             withContext(Dispatchers.IO) {
-                                repo.saveTransaction(
-                                    note = note,
-                                    validated = true,
-                                    lines = toSave,
-                                    now = now,
-                                )
+                                if (editId == null) {
+                                    repo.saveTransaction(note, true, toSave, now)
+                                } else {
+                                    repo.updateTransaction(
+                                        transactionId = editId,
+                                        createdAt = createdAt.takeIf { it > 0 } ?: now,
+                                        note = note,
+                                        validated = true,
+                                        lines = toSave,
+                                        now = now,
+                                    )
+                                }
                             }
                             onSaved()
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Valider la transaction") }
+                ) { Text(if (editId == null) "Valider la transaction" else "Enregistrer les modifications") }
             }
         }
     }
@@ -159,6 +180,7 @@ private fun LineEditor(
     canDelete: Boolean,
     onDelete: () -> Unit,
     onError: (String) -> Unit,
+    onTranscript: (String) -> Unit,
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -204,6 +226,7 @@ private fun LineEditor(
                     try {
                         val text = voice.transcribe(file)
                         line.transcript = text
+                        onTranscript(text)
                         val ex = voice.extractLine(text)
                         ex.direction?.let { line.direction = it }
                         ex.name?.let { line.name = it }
@@ -290,3 +313,12 @@ private fun LineEditor(
 /** 4000.0 → "4000" ; 12.5 → "12.5". */
 private fun formatPrice(value: Double): String =
     if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
+
+/** Construit un brouillon éditable depuis une ligne persistée (mode édition). */
+private fun draftOf(line: TradeLine): LineDraft = LineDraft().apply {
+    direction = line.direction
+    name = line.name
+    price = line.price?.let { formatPrice(it) } ?: ""
+    photoPath = line.photoPath
+    transcript = line.transcript
+}
