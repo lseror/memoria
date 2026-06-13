@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -38,15 +40,18 @@ import androidx.compose.ui.unit.dp
 import com.serortech.memoria.data.MemoriaRepository
 import com.serortech.memoria.data.TradeDirection
 import com.serortech.memoria.data.TradeLine
+import com.serortech.memoria.media.PhotoFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /** État éditable d'une ligne en cours de saisie. */
 private class LineDraft {
     var direction by mutableStateOf(TradeDirection.IN)
     var name by mutableStateOf("")
     var price by mutableStateOf("")
+    var photoPath by mutableStateOf<String?>(null)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -111,6 +116,7 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
                                 direction = d.direction,
                                 name = d.name.trim(),
                                 price = d.price.replace(',', '.').toDoubleOrNull(),
+                                photoPath = d.photoPath,
                                 createdAt = now,
                             )
                         }
@@ -135,6 +141,14 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
 
 @Composable
 private fun LineEditor(line: LineDraft, canDelete: Boolean, onDelete: () -> Unit) {
+    val ctx = LocalContext.current
+    var pendingFile by remember { mutableStateOf<File?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture(),
+    ) { success ->
+        if (success) pendingFile?.let { line.photoPath = it.absolutePath }
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -168,6 +182,18 @@ private fun LineEditor(line: LineDraft, canDelete: Boolean, onDelete: () -> Unit
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.width(220.dp),
             )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        val f = PhotoFiles.newPhotoFile(ctx, System.currentTimeMillis())
+                        pendingFile = f
+                        cameraLauncher.launch(PhotoFiles.uriFor(ctx, f))
+                    },
+                ) {
+                    Text(if (line.photoPath == null) "Photographier" else "Reprendre la photo")
+                }
+                line.photoPath?.let { CardThumbnail(path = it, sizeDp = 56) }
+            }
         }
     }
 }
