@@ -38,7 +38,7 @@ fun Home(modifier: Modifier = Modifier) {
     ) {
         Text("Memoria", style = MaterialTheme.typography.headlineLarge)
         Text(
-            "v0.0.1 — carnet de transactions cartes",
+            "v0.0.2 — carnet de transactions cartes",
             style = MaterialTheme.typography.bodyMedium,
         )
     }
