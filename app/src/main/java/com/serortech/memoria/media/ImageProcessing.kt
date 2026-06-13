@@ -23,11 +23,20 @@ object ImageProcessing {
                 ExifInterface.ORIENTATION_NORMAL,
             )
             val src = BitmapFactory.decodeFile(path) ?: return
-            val out = applyOrientation(src, orientation)
+            val oriented = applyOrientation(src, orientation)
+            // Toujours en portrait : si paysage (largeur > hauteur), pivoter de 90°.
+            val out = forcePortrait(oriented)
             FileOutputStream(file).use { out.compress(Bitmap.CompressFormat.JPEG, 90, it) }
-            if (out !== src) src.recycle()
+            if (oriented !== src) src.recycle()
+            if (out !== oriented) oriented.recycle()
             out.recycle()
         }
+    }
+
+    private fun forcePortrait(bmp: Bitmap): Bitmap {
+        if (bmp.width <= bmp.height) return bmp
+        val m = Matrix().apply { postRotate(90f) }
+        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
     }
 
     private fun applyOrientation(bmp: Bitmap, orientation: Int): Bitmap {
