@@ -3,6 +3,7 @@ package com.serortech.memoria.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -86,10 +87,17 @@ private fun TransactionCard(tx: TransactionWithLines) {
             tx.lines.forEach { line ->
                 val arrow = if (line.direction == TradeDirection.IN) "↘ entrant" else "↗ sortant"
                 val price = line.price?.let { " — %.2f €".format(it) } ?: ""
-                Text(
-                    "$arrow  ${line.name}$price",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    line.photoPath?.let { CardThumbnail(path = it, sizeDp = 40) }
+                    Text(
+                        "$arrow  ${line.name}$price",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
             tx.transaction.note?.let {
                 Text(
