@@ -49,6 +49,7 @@ import com.serortech.memoria.audio.VoiceRecorder
 import com.serortech.memoria.data.MemoriaRepository
 import com.serortech.memoria.data.TradeDirection
 import com.serortech.memoria.data.TradeLine
+import com.serortech.memoria.media.ImageProcessing
 import com.serortech.memoria.media.PhotoFiles
 import com.serortech.memoria.voice.OpenAiVoice
 import kotlinx.coroutines.Dispatchers
@@ -193,7 +194,12 @@ private fun LineEditor(
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
     ) { success ->
-        if (success) pendingFile?.let { line.photoPath = it.absolutePath }
+        if (success) pendingFile?.let { f ->
+            scope.launch {
+                withContext(Dispatchers.IO) { ImageProcessing.stripAndNormalize(f) }
+                line.photoPath = f.absolutePath
+            }
+        }
     }
 
     fun startRecording() {

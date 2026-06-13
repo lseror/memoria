@@ -13,8 +13,8 @@ android {
         applicationId = "com.serortech.memoria"
         minSdk = 29
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.0.8"
+        versionCode = 9
+        versionName = "0.0.9"
     }
 
     buildTypes {
