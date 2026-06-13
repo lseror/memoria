@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -17,12 +20,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -37,10 +43,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.serortech.memoria.audio.VoiceRecorder
 import com.serortech.memoria.data.MemoriaRepository
 import com.serortech.memoria.data.TradeDirection
 import com.serortech.memoria.data.TradeLine
 import com.serortech.memoria.media.PhotoFiles
+import com.serortech.memoria.voice.OpenAiVoice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,6 +69,7 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
     val ctx = LocalContext.current
     val repo = remember { MemoriaRepository.from(ctx) }
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
 
     val lines = remember { mutableStateListOf(LineDraft()) }
     var note by remember { mutableStateOf("") }
@@ -78,6 +88,7 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { inner ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner).padding(16.dp),
@@ -88,6 +99,7 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
                     line = line,
                     canDelete = lines.size > 1,
                     onDelete = { lines.removeAt(index) },
+                    onError = { msg -> scope.launch { snackbar.showSnackbar(msg) } },
                 )
             }
             item {
@@ -140,8 +152,19 @@ fun NewTransactionScreen(onBack: () -> Unit, onSaved: () -> Unit) {
 }
 
 @Composable
-private fun LineEditor(line: LineDraft, canDelete: Boolean, onDelete: () -> Unit) {
+private fun LineEditor(
+    line: LineDraft,
+    canDelete: Boolean,
+    onDelete: () -> Unit,
+    onError: (String) -> Unit,
+) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val recorder = remember { VoiceRecorder(ctx) }
+    val voice = remember { OpenAiVoice(ctx) }
+    var recording by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+
     var pendingFile by remember { mutableStateOf<File?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture(),
@@ -149,9 +172,65 @@ private fun LineEditor(line: LineDraft, canDelete: Boolean, onDelete: () -> Unit
         if (success) pendingFile?.let { line.photoPath = it.absolutePath }
     }
 
+    fun startRecording() {
+        try {
+            recorder.start()
+            recording = true
+        } catch (e: Exception) {
+            onError("Micro indisponible.")
+        }
+    }
+
+    val micPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) startRecording() else onError("Permission micro refusée.")
+    }
+
+    fun onMicClick() {
+        when {
+            busy -> Unit
+            recording -> {
+                recording = false
+                val file = recorder.stop()
+                if (file == null) {
+                    onError("Échec de l'enregistrement.")
+                    return
+                }
+                busy = true
+                scope.launch {
+                    try {
+                        val text = voice.transcribe(file)
+                        val ex = voice.extractLine(text)
+                        ex.direction?.let { line.direction = it }
+                        ex.name?.let { line.name = it }
+                        ex.price?.let { line.price = formatPrice(it) }
+                        if (ex.direction == null && ex.name == null && ex.price == null) {
+                            onError("Rien compris : « $text »")
+                        }
+                    } catch (e: Exception) {
+                        onError(e.message ?: "Échec de la saisie vocale.")
+                    } finally {
+                        busy = false
+                        file.delete()
+                    }
+                }
+            }
+            else -> {
+                if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED
+                ) {
+                    startRecording()
+                } else {
+                    micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
                         line.direction =
@@ -160,6 +239,13 @@ private fun LineEditor(line: LineDraft, canDelete: Boolean, onDelete: () -> Unit
                     },
                 ) {
                     Text(if (line.direction == TradeDirection.IN) "↘ Entrant" else "↗ Sortant")
+                }
+                OutlinedButton(onClick = { onMicClick() }, enabled = !busy) {
+                    when {
+                        busy -> CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        recording -> Text("⏹ Stop")
+                        else -> Text("🎤 Dicter")
+                    }
                 }
                 if (canDelete) {
                     IconButton(onClick = onDelete) {
@@ -197,3 +283,7 @@ private fun LineEditor(line: LineDraft, canDelete: Boolean, onDelete: () -> Unit
         }
     }
 }
+
+/** 4000.0 → "4000" ; 12.5 → "12.5". */
+private fun formatPrice(value: Double): String =
+    if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
