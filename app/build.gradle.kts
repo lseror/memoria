@@ -13,8 +13,8 @@ android {
         applicationId = "com.serortech.memoria"
         minSdk = 29
         targetSdk = 34
-        versionCode = 16
-        versionName = "0.0.16"
+        versionCode = 17
+        versionName = "0.0.17"
     }
 
     buildTypes {
@@ -76,5 +76,6 @@ dependencies {
     implementation(libs.play.services.auth)
     implementation(libs.google.api.client.android)
     implementation(libs.google.api.services.drive)
+    implementation(libs.androidx.work.runtime.ktx)
     debugImplementation(libs.androidx.ui.tooling)
 }

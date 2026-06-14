@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.serortech.memoria.drive.BackupWorker
 import com.serortech.memoria.ui.HomeScreen
 import com.serortech.memoria.ui.NewTransactionScreen
 import com.serortech.memoria.ui.SettingsScreen
@@ -19,6 +20,7 @@ private enum class Screen { HOME, NEW_TRANSACTION, SETTINGS }
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        BackupWorker.schedule(applicationContext)
         setContent {
             MemoriaTheme {
                 App()
