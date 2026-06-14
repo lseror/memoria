@@ -1,5 +1,6 @@
 package com.serortech.memoria.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,7 +38,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onNewTransaction: () -> Unit, onSettings: () -> Unit) {
+fun HomeScreen(onNewTransaction: () -> Unit, onSettings: () -> Unit, onEdit: (Long) -> Unit) {
     val ctx = LocalContext.current
     val repo = remember { MemoriaRepository.from(ctx) }
     val transactions by repo.observeTransactions().collectAsState(initial = emptyList())
@@ -79,15 +80,15 @@ fun HomeScreen(onNewTransaction: () -> Unit, onSettings: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(transactions, key = { it.transaction.id }) { tx ->
-                TransactionCard(tx)
+                TransactionCard(tx, onClick = { onEdit(tx.transaction.id) })
             }
         }
     }
 }
 
 @Composable
-private fun TransactionCard(tx: TransactionWithLines) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun TransactionCard(tx: TransactionWithLines, onClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 formatDate(tx.transaction.createdAt) +
@@ -103,7 +104,7 @@ private fun TransactionCard(tx: TransactionWithLines) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(top = 4.dp),
                 ) {
-                    line.photoPath?.let { CardThumbnail(path = it, sizeDp = 40) }
+                    line.photoPath?.let { PhotoThumb(path = it, sizeDp = 40) }
                     Text(
                         "$arrow  ${line.name}$price",
                         style = MaterialTheme.typography.bodyMedium,

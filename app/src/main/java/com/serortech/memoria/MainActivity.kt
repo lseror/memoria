@@ -30,14 +30,17 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App() {
     var screen by remember { mutableStateOf(Screen.HOME) }
+    var editId by remember { mutableStateOf<Long?>(null) }
     when (screen) {
         Screen.HOME -> HomeScreen(
-            onNewTransaction = { screen = Screen.NEW_TRANSACTION },
+            onNewTransaction = { editId = null; screen = Screen.NEW_TRANSACTION },
             onSettings = { screen = Screen.SETTINGS },
+            onEdit = { id -> editId = id; screen = Screen.NEW_TRANSACTION },
         )
         Screen.NEW_TRANSACTION -> {
             BackHandler { screen = Screen.HOME }
             NewTransactionScreen(
+                editId = editId,
                 onBack = { screen = Screen.HOME },
                 onSaved = { screen = Screen.HOME },
             )

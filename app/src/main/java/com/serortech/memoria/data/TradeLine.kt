@@ -33,6 +33,8 @@ data class TradeLine(
     /** Prix de marché suggéré (TCGPricer), en euros. */
     val marketPrice: Double? = null,
     val photoPath: String? = null,
+    /** Phrase dictée ayant servi à remplir la ligne (saisie vocale), si présente. */
+    val transcript: String? = null,
     /** true si le nom vient de la reconnaissance auto (et non d'une saisie manuelle). */
     val recognized: Boolean = false,
     val createdAt: Long,
