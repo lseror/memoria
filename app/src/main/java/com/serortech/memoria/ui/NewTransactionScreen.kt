@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -265,6 +266,27 @@ private fun LineEditor(
         }
     }
 
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val f = PhotoFiles.newPhotoFile(ctx, System.currentTimeMillis())
+                val ok = withContext(Dispatchers.IO) {
+                    runCatching {
+                        ctx.contentResolver.openInputStream(uri)?.use { input ->
+                            f.outputStream().use { input.copyTo(it) }
+                        }
+                        ImageProcessing.stripAndNormalize(f)
+                        true
+                    }.getOrDefault(false)
+                }
+                if (ok) { line.photoPath = f.absolutePath; runRecognition() }
+                else onError("Import de l'image impossible.")
+            }
+        }
+    }
+
     fun startRecording() {
         try {
             recorder.start()
@@ -380,6 +402,13 @@ private fun LineEditor(
                 ) {
                     Text(if (line.photoPath == null) "Photographier" else "Reprendre la photo")
                 }
+                OutlinedButton(
+                    onClick = {
+                        importLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
+                ) { Text("Importer") }
                 line.photoPath?.let { PhotoThumb(path = it, sizeDp = 56) }
             }
             if (line.photoPath != null) {
