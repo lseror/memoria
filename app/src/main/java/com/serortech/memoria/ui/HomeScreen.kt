@@ -75,12 +75,54 @@ fun HomeScreen(onNewTransaction: () -> Unit, onSettings: () -> Unit, onEdit: (Lo
             }
             return@Scaffold
         }
+        val spent = transactions.sumOf { tx ->
+            tx.lines.filter { it.direction == TradeDirection.IN }.sumOf { it.price ?: 0.0 }
+        }
+        val received = transactions.sumOf { tx ->
+            tx.lines.filter { it.direction == TradeDirection.OUT }.sumOf { it.price ?: 0.0 }
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item { BalanceCard(spent = spent, received = received) }
             items(transactions, key = { it.transaction.id }) { tx ->
                 TransactionCard(tx, onClick = { onEdit(tx.transaction.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun BalanceCard(spent: Double, received: Double) {
+    val balance = received - spent
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Dépensé", style = MaterialTheme.typography.bodyMedium)
+                Text("%.2f €".format(spent), style = MaterialTheme.typography.bodyMedium)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Encaissé", style = MaterialTheme.typography.bodyMedium)
+                Text("%.2f €".format(received), style = MaterialTheme.typography.bodyMedium)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Balance", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "%+.2f €".format(balance),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (balance >= 0) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
